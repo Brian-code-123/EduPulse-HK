@@ -1,0 +1,9 @@
+openai==3.14.1
+sentence-transformers==6.0.1
+supabase==2.16.0
+beautifulsoup4==4.15.0
+requests==2.34.2
+streamlit==1.64.0
+streamlit-authenticator==0.4.2
+python-dotenv==1.2.3
+pytest==9.1.1
