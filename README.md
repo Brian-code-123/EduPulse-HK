@@ -99,7 +99,7 @@ right-hand panel shows the agent's tool-call trace.
 There's no cron in this repo — per the assessment brief, a manual trigger is
 fine. Two ways to run it:
 
-- **From the UI**: click "🔄 Refresh（檢查EDB網頁有冇更新）" in the app.
+- **From the UI**: click "Refresh（檢查EDB網頁有冇更新）" in the app.
 - **From the CLI** (e.g. for a real cron job / GitHub Actions schedule):
   ```bash
   python -c "from change_detect import check_updates; from notify import notify_all_changes; notify_all_changes(check_updates())"

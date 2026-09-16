@@ -2,7 +2,7 @@ import streamlit as st
 
 from auth import require_login
 
-st.set_page_config(page_title="小學同行", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="小學同行", layout="wide")
 
 CUSTOM_CSS = """
 <style>
@@ -15,6 +15,11 @@ html, body, [class*="css"] {
     border-radius: 16px;
     padding: 0.75rem 1rem;
     margin-bottom: 0.5rem;
+}
+
+[data-testid="stChatMessageAvatarUser"],
+[data-testid="stChatMessageAvatarAssistant"] {
+    display: none;
 }
 
 [data-testid="stChatMessageAvatarUser"] ~ div [data-testid="stChatMessage"],
@@ -45,7 +50,7 @@ from change_detect import check_updates  # noqa: E402
 from llm_client import embed  # noqa: E402
 from notify import notify_all_changes  # noqa: E402
 
-st.title("🎓 小學同行")
+st.title("小學同行")
 st.caption("EDB 小學教育問答助手 · 答案有根有據，唔識就話你知")
 
 
@@ -85,19 +90,19 @@ with chat_col:
         st.rerun()
 
 EVENT_LABELS = {
-    "retrieval_started": ("🔍", "搜緊相關內容"),
-    "retrieval_completed": ("📄", "搵到相關段落"),
-    "llm_call_started": ("🧠", "諗緊點答"),
-    "tool_call_requested": ("🛠️", "叫緊個tool"),
-    "tool_call_result": ("✅", "Tool答咗嘢返嚟"),
-    "final_answer": ("💬", "生成咗答案"),
+    "retrieval_started": "搜緊相關內容",
+    "retrieval_completed": "搵到相關段落",
+    "llm_call_started": "諗緊點答",
+    "tool_call_requested": "叫緊個tool",
+    "tool_call_result": "Tool答咗嘢返嚟",
+    "final_answer": "生成咗答案",
 }
 
 
 def render_trace_event(event: dict) -> None:
     kind = event.get("event", "unknown")
-    icon, label = EVENT_LABELS.get(kind, ("•", kind))
-    with st.expander(f"{icon} {label}", expanded=False):
+    label = EVENT_LABELS.get(kind, kind)
+    with st.expander(label, expanded=False):
         if kind == "retrieval_completed":
             for section, sim in zip(event.get("matched_sections", []), event.get("similarities", [])):
                 st.markdown(f"- **{section}**（相似度 {sim}）")
@@ -116,7 +121,7 @@ def render_trace_event(event: dict) -> None:
 
 with log_col:
     st.subheader("Agent Process Log")
-    if st.button("🔄 Refresh（檢查EDB網頁有冇更新）"):
+    if st.button("Refresh（檢查EDB網頁有冇更新）"):
         with st.spinner("檢查緊..."):
             results = check_updates()
             notify_all_changes(results)

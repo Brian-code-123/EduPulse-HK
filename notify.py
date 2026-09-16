@@ -22,7 +22,7 @@ def send_change_notification(result: ChangeResult) -> None:
         return
 
     embed = {
-        "title": "📚 小學同行 · 偵測到頁面更新",
+        "title": "小學同行 · 偵測到頁面更新",
         "description": result.summary,
         "color": EMBED_COLOR,
         "fields": [
