@@ -24,7 +24,7 @@ def main() -> None:
         pdf_bytes = fetch_pdf(url)
         if pdf_bytes is None:
             continue
-        pdf_chunks.extend(chunk_pdf(pdf_bytes, url, PDF_TITLES[url]))
+        pdf_chunks.extend(chunk_pdf(pdf_bytes, url, PDF_TITLES.get(url, url)))
     print(f"[ingest] got {len(pdf_chunks)} chunks from {len(PDF_URLS)} PDFs")
 
     chunks = chunks + pdf_chunks
