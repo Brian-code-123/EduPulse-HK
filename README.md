@@ -2,7 +2,7 @@
 
 A small grounded Q&A agent for Hong Kong's primary education policy pages on the
 [Education Bureau (EDB) website](https://www.edb.gov.hk/tc/edu-system/primary-secondary/primary.html).
-Built for a take-home assessment — see `AI_USAGE_NOTE.md` for how AI tools were used.
+Built for a take-home assessment — an AI usage note (how AI tools were used) was sent separately by email.
 
 ## What it does
 
@@ -34,7 +34,7 @@ formatted Discord embed (not raw HTML):
 ## Tech stack
 
 - **LLM**: DeepSeek API (`deepseek-flash`, function calling)
-- **Embeddings**: local `sentence-transformers` (`paraphrase-multilingual-MiniLM-L12-v2`, 384-dim) — runs on your machine, no external embedding API needed
+- **Embeddings**: local `sentence-transformers` (`intfloat/multilingual-e5-small`, 384-dim, asymmetric query/passage retrieval) — runs on your machine, no external embedding API needed
 - **Vector store**: Supabase (Postgres + pgvector, HNSW index)
 - **UI**: Streamlit
 - **Notifications**: Discord webhook

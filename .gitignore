@@ -7,3 +7,5 @@ logs/*.jsonl
 .streamlit/secrets.toml
 .claude/settings.local.json
 .DS_Store
+
+AI_USAGE_NOTE.md
