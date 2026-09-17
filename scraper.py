@@ -1,3 +1,4 @@
+import copy
 import hashlib
 import json
 import os
@@ -154,12 +155,22 @@ def chunk_page(html: str, url: str) -> list[Chunk]:
     chunks: list[Chunk] = []
     for container in containers:
         title_div = container.find(class_=TITLE_CLASS)
-        content_div = container.find(class_=CONTENT_CLASS)
-        if title_div is None or content_div is None:
+        if title_div is None:
             continue
         section_title = title_div.get_text(strip=True)
         if not section_title:
             continue
+        # Most EDB pages wrap body content in a `generic_page_content` div,
+        # but some template variants (e.g. spa-systems/primary-1-admission)
+        # put content directly as siblings of the title div with no wrapper
+        # class at all. Fall back to a copy of the container minus its title
+        # div in that case, so the title text isn't duplicated into the body.
+        content_div = container.find(class_=CONTENT_CLASS)
+        if content_div is None:
+            content_div = copy.copy(container)
+            title_copy = content_div.find(class_=TITLE_CLASS)
+            if title_copy is not None:
+                title_copy.decompose()
         chunks.extend(_chunk_content_block(section_title, content_div, url))
 
     return chunks
