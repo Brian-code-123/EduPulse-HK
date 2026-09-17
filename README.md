@@ -44,7 +44,7 @@ DISCORD_WEBHOOK_URL=    # Server Settings → Integrations → Webhooks → Copy
 ```
 
 The Supabase schema (`document_chunks`, `page_snapshots`, `match_document_chunks`
-RPC) needs to exist before running — see `supabase_schema.sql` for the DDL used.
+RPC) needs to exist before running — see `sql/supabase_schema.sql` for the DDL used.
 Both tables have Row Level Security **enabled with no policies**, so the app
 must use the `service_role` key (bypasses RLS, meant for trusted server-side
 code — this app never sends it to the browser). The `anon` key is
@@ -55,7 +55,7 @@ deliberately left unable to read or write anything.
 The app is gated behind a single admin login (`streamlit-authenticator`) —
 there's no self-registration. To set it up:
 
-1. Run `python generate_password_hash.py`, type your chosen password, copy the
+1. Run `python scripts/generate_password_hash.py`, type your chosen password, copy the
    printed hash.
 2. Add an `[auth]` section to `.streamlit/secrets.toml` (gitignored):
    ```toml
