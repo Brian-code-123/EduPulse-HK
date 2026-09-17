@@ -26,6 +26,8 @@ Four things it does:
 
 **Stack**: Streamlit for the UI, DeepSeek (`deepseek-flash`) for generation and tool calling, a local `sentence-transformers` model (`intfloat/multilingual-e5-small`) for embeddings, Supabase (Postgres + pgvector) for storage and retrieval, Discord webhooks for notifications.
 
+This indexes a fixed set of 25 EDB pages plus one whitelisted PDF — not a general crawler — and runs behind a single admin login with no self-registration. Scope and auth choices like these are deliberate for a single-tenant demo, not gaps; see the technical note's scalability section for what changes past that.
+
 ## Demo
 
 ![Website demo](assets/website-demo.gif)
