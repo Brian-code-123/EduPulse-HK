@@ -27,6 +27,22 @@ EDB_URLS = [
     "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/sbss/language-learning-support/featurearticle.html",
     "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/sbss/index.html",
     "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/through-train/index.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/spa-systems/primary-1-admission/index.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/healthy-sch-policy/index.html",
+    # --- 以下14條覆蓋原本3個gateway頁面嘅真正子頁內容 ---
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary/small-class-teaching/professional-support.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary/small-class-teaching/papers-circulars.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary/small-class-teaching/reference.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/direct-subsidy-scheme/info-sch.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/direct-subsidy-scheme/useful-materials.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/through-train/background.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/through-train/application-procedures.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/through-train/faq-sch.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/through-train/introduction.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/through-train/faq-parent.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary-secondary/through-train/sch-list.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary/whole-day-schooling/general-information-on-the-operation.html",
+    "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary/whole-day-schooling/practice-experience.html",
 ]
 
 USER_AGENT = "EduPulseHK-research/0.1 (contact: brian0728chun@gmail.com)"

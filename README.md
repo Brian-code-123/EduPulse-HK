@@ -156,5 +156,14 @@ limits, evals, PII, Streamlit Cloud cold starts, what breaks at 20-school
 scale). In short: this is a single-tenant demo, not production-ready — one
 hardcoded admin account with no self-registration or password reset, no
 per-tenant isolation, no retry/backoff on the scraper or LLM calls, and the
-hardcoded 10-URL scope means it only knows about pages explicitly listed in
+hardcoded 25-URL scope means it only knows about pages explicitly listed in
 `config.py`.
+
+- Scope 由 10 條擴展到 25 條 URL：發現原本嘅 10 條入面，`small-class-teaching`、
+  `direct-subsidy-scheme`、`through-train` 三個頁面本身只係連結選單（landing
+  page），真正政策內文喺再深一層嘅子頁，之前完全冇被scrape到，導致問呢幾個
+  主題答唔到。已經逐條實測confirm14條子頁（+之前已修嘅小一入學統籌辦法）都
+  用現有`chunk_page`邏輯攞到真實內容，加返落`config.EDB_URLS`。
+- `healthy-sch-policy/index.html`（健康校園政策）用 Webflow accordion 顯示內文，
+  實際段落內容係JS-render，static scraper攞唔到——已知呢個page被index咗但淨係得標題，
+  問細節問題時agent會老實答「未有直接答案」，唔會估估吓。
