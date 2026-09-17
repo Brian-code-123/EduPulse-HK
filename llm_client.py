@@ -26,8 +26,19 @@ def _embedding_model() -> SentenceTransformer:
     return _embedding_model_instance
 
 
-def embed(text: str) -> list[float]:
-    vector = _embedding_model().encode(text, normalize_embeddings=True)
+def embed_query(text: str) -> list[float]:
+    """Embed a search query. e5-family models are trained for asymmetric
+    query/passage retrieval and need this prefix to use that behaviour —
+    without it, the model falls back to generic paraphrase-similarity,
+    losing the ranking improvement this migration exists for."""
+    vector = _embedding_model().encode(f"query: {text}", normalize_embeddings=True)
+    return vector.tolist()
+
+
+def embed_passage(text: str) -> list[float]:
+    """Embed a document chunk for storage. See embed_query for why the
+    prefix matters."""
+    vector = _embedding_model().encode(f"passage: {text}", normalize_embeddings=True)
     return vector.tolist()
 
 

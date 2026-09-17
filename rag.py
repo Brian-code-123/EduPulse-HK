@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import db
 from config import SIMILARITY_THRESHOLD, TOP_K
-from llm_client import embed
+from llm_client import embed_query
 
 
 @dataclass
@@ -14,7 +14,7 @@ class RetrievedChunk:
 
 
 def retrieve(query: str, top_k: int = TOP_K, threshold: float = SIMILARITY_THRESHOLD) -> list[RetrievedChunk]:
-    query_embedding = embed(query)
+    query_embedding = embed_query(query)
     rows = db.match_chunks(query_embedding, top_k)
     chunks = [
         RetrievedChunk(

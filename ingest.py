@@ -8,7 +8,7 @@ Usage: python ingest.py
 import db
 from change_detect import check_pdf_url, check_url
 from config import EDB_URLS, PDF_TITLES, PDF_URLS
-from llm_client import embed
+from llm_client import embed_passage
 from pdf_scraper import chunk_pdf, fetch_pdf
 from scraper import scrape_all
 
@@ -34,7 +34,7 @@ def main() -> None:
 
     rows = []
     for i, chunk in enumerate(chunks):
-        embedding = embed(chunk.content)
+        embedding = embed_passage(chunk.content)
         rows.append(
             {
                 "content": chunk.content,

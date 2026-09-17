@@ -56,9 +56,9 @@ if "embedding_warmup_started" not in st.session_state:
     st.session_state.embedding_warmup_started = True
 
     def _background_warmup():
-        from llm_client import embed as _embed
+        from llm_client import embed_query as _embed_query
 
-        _embed("warm up")
+        _embed_query("warm up")
 
     threading.Thread(target=_background_warmup, daemon=True).start()
 
@@ -66,7 +66,7 @@ require_login()  # must run before any RAG/embedding/API code — see auth.py
 
 from agent import answer_question_stream  # noqa: E402
 from change_detect import check_updates  # noqa: E402
-from llm_client import embed  # noqa: E402
+from llm_client import embed_query  # noqa: E402
 from notify import notify_all_changes  # noqa: E402
 
 st.title("小學同行")
@@ -85,7 +85,7 @@ def _warm_up_embedding_model():
     # this call hits llm_client's module-level singleton immediately. If it
     # hasn't, this blocks and loads it here as a fallback (e.g. very fast
     # typers, or an already-warm session where the thread never had to run).
-    embed("warm up")
+    embed_query("warm up")
     return True
 
 

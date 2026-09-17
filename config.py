@@ -11,10 +11,10 @@ SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
 CHAT_MODEL = "deepseek-flash"
-EMBEDDING_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
+EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
 EMBEDDING_DIMENSIONS = 384
 SIMILARITY_THRESHOLD = 0.5
-TOP_K = 3
+TOP_K = 5
 
 EDB_URLS = [
     "https://www.edb.gov.hk/tc/edu-system/primary-secondary/primary.html",

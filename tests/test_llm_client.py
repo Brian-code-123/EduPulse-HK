@@ -2,6 +2,8 @@ import threading
 import time
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+
 import llm_client
 
 
@@ -34,3 +36,29 @@ def test_embedding_model_loaded_exactly_once_under_concurrent_first_access():
     assert construct_count == 1
 
     llm_client._embedding_model_instance = None  # cleanup for other tests
+
+
+def test_embed_query_prepends_query_prefix(monkeypatch):
+    captured = {}
+
+    class FakeModel:
+        def encode(self, text, normalize_embeddings=True):
+            captured["text"] = text
+            return np.array([0.1, 0.2, 0.3])
+
+    monkeypatch.setattr(llm_client, "_embedding_model", lambda: FakeModel())
+    llm_client.embed_query("小學全日制嘅好處係咩？")
+    assert captured["text"] == "query: 小學全日制嘅好處係咩？"
+
+
+def test_embed_passage_prepends_passage_prefix(monkeypatch):
+    captured = {}
+
+    class FakeModel:
+        def encode(self, text, normalize_embeddings=True):
+            captured["text"] = text
+            return np.array([0.1, 0.2, 0.3])
+
+    monkeypatch.setattr(llm_client, "_embedding_model", lambda: FakeModel())
+    llm_client.embed_passage("小學全日制的好處...")
+    assert captured["text"] == "passage: 小學全日制的好處..."
