@@ -72,6 +72,12 @@ from notify import notify_all_changes  # noqa: E402
 st.title("小學同行")
 st.caption("EDB 小學教育問答助手 · 答案有根有據，唔識就話你知")
 
+with st.sidebar:
+    if st.button("重新開始對話"):
+        st.session_state.messages = []
+        st.session_state.pop("last_trace", None)
+        st.rerun()
+
 
 @st.cache_resource(show_spinner="首次載入 embedding model...")
 def _warm_up_embedding_model():
