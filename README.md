@@ -7,8 +7,10 @@ Built for a take-home assessment — see `AI_USAGE_NOTE.md` for how AI tools wer
 ## What it does
 
 1. **Grounded Q&A** — answers questions using only content scraped from EDB's
-   primary-education pages, with inline `[Section Title](URL)` citations. If the
-   answer isn't in the indexed pages, it says so instead of guessing.
+   primary-education pages (plus one whitelisted text-based PDF, see below),
+   with inline `[Section Title](URL)` citations — for the PDF, the citation
+   includes the page number. If the answer isn't in the indexed pages, it
+   says so instead of guessing.
 2. **Agent tool calling** — the LLM can call `get_section_last_updated`, a custom
    tool that looks up when a section was last detected as changed. Tool calls are
    shown live in the "Agent Process Log" panel and logged to `logs/agent_trace.jsonl`.
@@ -160,6 +162,27 @@ full write-up): the app sleeps after a period of inactivity and takes
 10-60s to wake back up (cold start), which does not match the local
 response-time numbers; free-tier RAM is ~1GB, which is tight for
 torch+sentence-transformers+Streamlit together.
+
+## PDF scope decision
+
+EDB's primary-education pages link out to a lot of PDFs, of very different
+kinds: text-based FAQs and curriculum guides, application forms (text but
+low Q&A value), and scanned posters/leaflets (no extractable text at all).
+Rather than crawl every linked PDF, this repo whitelists one representative
+text-based PDF likely to answer real parent questions:
+`FAQ_TC.pdf` (小一入學統籌辦法常見問題) — see `config.PDF_URLS`/`PDF_TITLES`.
+
+**Included**: text-based PDFs added to `config.PDF_URLS`, extracted with
+`pypdf` (pure Python, no OS-level dependency), chunked per page with the
+page number folded into the citation (e.g. `小一入學統籌辦法 常見問題 - 第2頁`),
+monitored for changes the same way as HTML pages (`change_detect.check_pdf_url`).
+
+**Explicitly excluded** (see `AI_USAGE_NOTE.md` section 6 for the reasoning):
+scanned/image-only PDFs (would need OCR — a new, heavier dependency and a
+Traditional Chinese OCR accuracy problem this repo doesn't take on),
+application forms and authorization-letter samples (extractable but low
+Q&A value — they're forms, not prose a parent would ask a question about),
+and anything requiring video/audio transcription.
 
 ## Known limitations
 
