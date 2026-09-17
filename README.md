@@ -1,209 +1,122 @@
 # 小學同行
 
-A small grounded Q&A agent for Hong Kong's primary education policy pages on the
-[Education Bureau (EDB) website](https://www.edb.gov.hk/tc/edu-system/primary-secondary/primary.html).
-Built for a take-home assessment — an AI usage note (how AI tools were used) was sent separately by email.
+A grounded Q&A agent over Hong Kong's EDB primary-education policy pages — ask it a question, it answers from indexed source pages with inline citations, and says "I don't know" instead of making something up when a page doesn't cover it.
 
-## What it does
+## Contents
 
-1. **Grounded Q&A** — answers questions using only content scraped from EDB's
-   primary-education pages (plus one whitelisted text-based PDF, see below),
-   with inline `[Section Title](URL)` citations — for the PDF, the citation
-   includes the page number. If the answer isn't in the indexed pages, it
-   says so instead of guessing.
-2. **Agent tool calling** — the LLM can call `get_section_last_updated`, a custom
-   tool that looks up when a section was last detected as changed. Tool calls are
-   shown live in the "Agent Process Log" panel and logged to `logs/agent_trace.jsonl`.
-3. **Change detection** — hashes the normalized text of each tracked page and
-   diffs it against the last known snapshot in Supabase.
-4. **Push notification** — on a detected change, the diff is summarized in plain
-   Cantonese/Chinese by the LLM (no raw HTML) and posted to a Discord webhook.
+- [Overview](#overview)
+- [Demo](#demo)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Project structure](#project-structure)
+- [Testing](#testing)
+- [Deployment](#deployment)
+
+## Overview
+
+Parents and teachers looking up EDB policy — whole-day schooling, direct subsidy scheme, P1 admission — currently have to dig through a maze of HTML pages and PDFs on the EDB site. This app indexes that content once and lets you ask it directly, in Cantonese, with every answer traceable back to the page it came from.
+
+Four things it does:
+
+1. **Grounded Q&A** — retrieves relevant chunks from Supabase pgvector, feeds them to DeepSeek as context, and requires the model to cite `[Section Title](URL)` for anything it states. If nothing relevant is in the index, it says so rather than guessing.
+2. **Agent tool calling** — the LLM can call `get_section_last_updated` to check when a section last changed, and the call is visible live in the sidebar, not hidden behind the scenes.
+3. **Change detection** — hashes each tracked page's normalized text and diffs it against the last snapshot stored in Supabase.
+4. **Push notifications** — when a page changes, DeepSeek summarizes the diff in plain Cantonese and posts it to a Discord webhook, so nobody has to read a raw HTML diff.
+
+**Stack**: Streamlit for the UI, DeepSeek (`deepseek-flash`) for generation and tool calling, a local `sentence-transformers` model (`intfloat/multilingual-e5-small`) for embeddings, Supabase (Postgres + pgvector) for storage and retrieval, Discord webhooks for notifications.
 
 ## Demo
 
-**Website walkthrough** — login, asking a question the page covers, seeing
-the inline citation, and the Agent Process Log trace panel:
-
 ![Website demo](assets/website-demo.gif)
 
-**Discord push notification** — a detected page change arriving as a
-formatted Discord embed (not raw HTML):
+Grounded Q&A (in-domain, out-of-domain, and an edge-case question), the tool-call trace, and a detected page change pushed to Discord — all in one recording.
 
-![Discord notification demo](assets/discord-notification-demo.gif)
+## Quick start
 
-## Tech stack
-
-- **LLM**: DeepSeek API (`deepseek-flash`, function calling)
-- **Embeddings**: local `sentence-transformers` (`intfloat/multilingual-e5-small`, 384-dim, asymmetric query/passage retrieval) — runs on your machine, no external embedding API needed
-- **Vector store**: Supabase (Postgres + pgvector, HNSW index)
-- **UI**: Streamlit
-- **Notifications**: Discord webhook
-
-## Setup
+**Requirements**: Python 3.11+, a Supabase project, a DeepSeek API key, a Discord webhook URL (optional, only needed for push notifications).
 
 ```bash
+git clone <this repo>
+cd EduPulse-HK
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Copy `.env.example` to `.env` and fill in:
+Copy `.env.example` to `.env` and fill in your keys (see [Configuration](#configuration) below), then create the Supabase schema:
+
+```bash
+psql "$SUPABASE_DB_URL" -f sql/supabase_schema.sql
+# or paste sql/supabase_schema.sql into the Supabase SQL editor
+```
+
+Ingest the source pages, then run the app:
+
+```bash
+python ingest.py       # scrapes EDB pages + the whitelisted PDF, embeds and stores chunks
+streamlit run app.py
+```
+
+Open the URL Streamlit prints. First load is slower than usual — the embedding model has to load into memory once.
+
+## Configuration
+
+`.env`:
 
 ```
 DEEPSEEK_API_KEY=       # https://platform.deepseek.com
 SUPABASE_URL=           # your Supabase project URL
-SUPABASE_KEY=           # Supabase service_role key (NOT anon) — see security note below
+SUPABASE_KEY=           # service_role key — not anon, see note below
 SUPABASE_PROJECT_ID=    # Supabase project ref
 DISCORD_WEBHOOK_URL=    # Server Settings → Integrations → Webhooks → Copy URL
 ```
 
-The Supabase schema (`document_chunks`, `page_snapshots`, `match_document_chunks`
-RPC) needs to exist before running — see `sql/supabase_schema.sql` for the DDL used.
-Both tables have Row Level Security **enabled with no policies**, so the app
-must use the `service_role` key (bypasses RLS, meant for trusted server-side
-code — this app never sends it to the browser). The `anon` key is
-deliberately left unable to read or write anything.
+`document_chunks` and `page_snapshots` have Row Level Security enabled with no policies, so reads and writes only work through the `service_role` key — the `anon` key is deliberately left unable to touch either table. This app runs entirely server-side (Streamlit), so `service_role` never reaches a browser.
 
-### Admin login
+The source page list lives in `config.py` (`EDB_URLS`, `PDF_URLS`) rather than a database table — adding a page to track means adding a URL there and re-running `ingest.py`.
 
-The app is gated behind a single admin login (`streamlit-authenticator`) —
-there's no self-registration. To set it up:
+## Usage
 
-1. Run `python scripts/generate_password_hash.py`, type your chosen password, copy the
-   printed hash.
-2. Add an `[auth]` section to `.streamlit/secrets.toml` (gitignored):
-   ```toml
-   [auth]
-   username = "admin"
-   name = "Admin"
-   password_hash = "<the hash from step 1>"
-   cookie_name = "eduPulseAuth"
-   cookie_key = "<any random string, e.g. `python -c \"import secrets; print(secrets.token_hex(16))\"`>"
-   cookie_expiry_days = 30
-   ```
-3. Login is capped at 5 attempts before lockout, and Streamlit's built-in
-   error-detail page is disabled (`.streamlit/config.toml`) so failures don't
-   leak stack traces.
+Ask a question in the chat box. The right-hand "Agent Process Log" panel shows what the agent actually did to answer it — retrieval, similarity scores, the generation step — so you can see it's not just printing canned text.
 
-## Running it
-
-**1. Ingest EDB content into Supabase** (one-off, run whenever you want to
-(re)index the source pages):
+To check EDB pages for updates and push a Discord notification on anything that changed:
 
 ```bash
-python ingest.py
-```
-
-This scrapes the 10 hardcoded EDB primary-education URLs (see `config.py`),
-chunks and embeds them, writes them to `document_chunks`, and records a
-baseline snapshot in `page_snapshots` so change detection has something to
-diff against.
-
-**2. Start the app:**
-
-```bash
-streamlit run app.py
-```
-
-Open the printed local URL. Ask a question in the chat box on the left; the
-right-hand panel shows the agent's tool-call trace.
-
-## Triggering the change check
-
-There's no cron in this repo — per the assessment brief, a manual trigger is
-fine. Two ways to run it:
-
-- **From the UI**: click "Refresh（檢查EDB網頁有冇更新）" in the app.
-- **From the CLI** (e.g. for a real cron job / GitHub Actions schedule):
-  ```bash
-  python -c "from change_detect import check_updates; from notify import notify_all_changes; notify_all_changes(check_updates())"
-  ```
-
-To verify it actually detects a real edit, you can plant a fake old snapshot
-and confirm the diff/push fires:
-
-```bash
-python -c "
-import db, change_detect
-url = 'https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary/small-class-teaching/index.html'
-snap = db.get_snapshot(url)
-old_text = snap['raw_text'] + '\n小班教學班級人數上限為25人。'
-db.upsert_snapshot(url, change_detect.hash_text(old_text), old_text)
-"
 python -c "from change_detect import check_updates; from notify import notify_all_changes; notify_all_changes(check_updates())"
-python ingest.py  # restores the real baseline afterwards
 ```
 
-## Tests
+or click "Refresh（檢查EDB網頁有冇更新）" in the app. There's no scheduler wired up here — run this from cron, a GitHub Actions schedule, or by hand.
+
+## Project structure
+
+```
+app.py             Streamlit UI — chat, login gate, agent trace panel, refresh button
+rag.py              retrieval: embeds the query, calls Supabase's match_document_chunks RPC
+agent.py            DeepSeek tool-calling loop, get_section_last_updated tool
+llm_client.py       DeepSeek chat client + embed_query/embed_passage (asymmetric e5 prefixes)
+scraper.py           HTML fetch + chunking for EDB pages
+pdf_scraper.py        PDF fetch + per-page chunking (pypdf)
+ingest.py           one-off pipeline: scrape/extract → chunk → embed → store in Supabase
+change_detect.py     hash + diff each tracked page against its last snapshot
+notify.py             posts a change summary to the Discord webhook
+db.py                 Supabase client + query helpers
+config.py             source URLs, model names, thresholds, prompts
+sql/supabase_schema.sql   table + RPC definitions
+tests/                 unit tests (mocked) + integration tests (live DeepSeek/Supabase)
+```
+
+Ingestion, change detection, and notifications are independent of the Streamlit request path and share no state with it beyond the Supabase client — you can run `ingest.py` or the change check from a plain script without touching the app.
+
+## Testing
 
 ```bash
-pytest              # unit tests only need no credentials
-pytest -m integration  # also exercises live DeepSeek + Supabase (needs ingest.py run first)
+pytest                   # unit tests, no credentials needed
+pytest -m integration    # exercises live DeepSeek + Supabase, needs ingest.py run first
 ```
 
-## Deploying to Streamlit Community Cloud
+## Deployment
 
-This app runs fine on Streamlit Community Cloud's free tier — no Docker
-needed, and (unlike serverless platforms such as Vercel) it stays a long-lived
-process, so the embedding model warms up once and stays warm.
+Runs as-is on Streamlit Community Cloud's free tier — push to GitHub, deploy from [share.streamlit.io](https://share.streamlit.io) with `app.py` as the entry point, and paste the same keys from `.env` into the app's Secrets. First deploy takes a few minutes to install `torch` + `sentence-transformers`.
 
-1. Push this repo to GitHub (`.env` and `.streamlit/secrets.toml` are
-   gitignored, so keys never leave your machine via git).
-2. Go to [share.streamlit.io](https://share.streamlit.io), sign in with
-   GitHub, and deploy this repo with `app.py` as the entry point.
-3. In the app's **Settings → Secrets**, paste the same keys as your local
-   `.env` (`DEEPSEEK_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`,
-   `DISCORD_WEBHOOK_URL`) plus the `[auth]` table described above.
-4. First deploy takes a few minutes — the image has to install `torch` +
-   `sentence-transformers`.
-
-**Known trade-offs of this hosting choice** (see `AI_USAGE_NOTE.md` for the
-full write-up): the app sleeps after a period of inactivity and takes
-10-60s to wake back up (cold start), which does not match the local
-response-time numbers; free-tier RAM is ~1GB, which is tight for
-torch+sentence-transformers+Streamlit together.
-
-## PDF scope decision
-
-EDB's primary-education pages link out to a lot of PDFs, of very different
-kinds: text-based FAQs and curriculum guides, application forms (text but
-low Q&A value), and scanned posters/leaflets (no extractable text at all).
-Rather than crawl every linked PDF, this repo whitelists one representative
-text-based PDF likely to answer real parent questions:
-`FAQ_TC.pdf` (小一入學統籌辦法常見問題) — see `config.PDF_URLS`/`PDF_TITLES`.
-
-**Included**: text-based PDFs added to `config.PDF_URLS`, extracted with
-`pypdf` (pure Python, no OS-level dependency), chunked per page with the
-page number folded into the citation (e.g. `小一入學統籌辦法 常見問題 - 第2頁`),
-monitored for changes the same way as HTML pages (`change_detect.check_pdf_url`).
-
-**Explicitly excluded** (see `AI_USAGE_NOTE.md` section 6 for the reasoning):
-scanned/image-only PDFs (would need OCR — a new, heavier dependency and a
-Traditional Chinese OCR accuracy problem this repo doesn't take on),
-application forms and authorization-letter samples (extractable but low
-Q&A value — they're forms, not prose a parent would ask a question about),
-and anything requiring video/audio transcription.
-
-## Known limitations
-
-See `AI_USAGE_NOTE.md` section 6 for the full honest list (caching, rate
-limits, evals, PII, Streamlit Cloud cold starts, what breaks at 20-school
-scale). In short: this is a single-tenant demo, not production-ready — one
-hardcoded admin account with no self-registration or password reset, no
-per-tenant isolation, no retry/backoff on the scraper or LLM calls, and the
-hardcoded 25-URL scope means it only knows about pages explicitly listed in
-`config.py`.
-
-- **Scope grew from 10 to 25 URLs**: three of the original 10 pages
-  (`small-class-teaching`, `direct-subsidy-scheme`, `through-train`) turned
-  out to be link menus, not content pages — the real policy text lived one
-  level deeper and was never scraped, so the agent couldn't answer questions
-  about those topics at all. Verified all 14 of their real content sub-pages
-  (plus a separately-fixed primary-1-admission page) actually yield
-  substantial text with the existing `chunk_page` logic before adding them
-  to `config.EDB_URLS`.
-- `healthy-sch-policy/index.html` (Healthy School Policy) renders its body
-  text client-side via a Webflow accordion component, which a static scraper
-  can't reach — only the 8 section headings are indexed. The agent correctly
-  answers "no direct answer in the database" for detail questions about this
-  page instead of guessing.
+The free tier sleeps the app after inactivity (10-60s cold start on the next visit) and caps RAM around 1GB, which is tight but workable for this model's footprint.
