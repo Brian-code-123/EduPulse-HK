@@ -101,7 +101,7 @@ def extract_page_text(html: str) -> str:
     return "\n".join(lines)
 
 
-def _split_long_chunk(text: str) -> list[str]:
+def split_long_chunk(text: str) -> list[str]:
     if len(text) <= MAX_CHUNK_CHARS:
         return [text]
     parts = []
@@ -122,7 +122,7 @@ def _chunk_content_block(section_title: str, content_soup, url: str) -> list[Chu
     if not sub_headings:
         content = re.sub(r"\n{3,}", "\n\n", content_soup.get_text(separator="\n", strip=True)).strip()
         if content:
-            for part in _split_long_chunk(content):
+            for part in split_long_chunk(content):
                 chunks.append(Chunk(content=part, url=url, section_title=section_title))
         return chunks
 
@@ -136,7 +136,7 @@ def _chunk_content_block(section_title: str, content_soup, url: str) -> list[Chu
         content = re.sub(r"\n{3,}", "\n\n", "\n".join(p for p in content_parts if p)).strip()
         if not content:
             continue
-        for part in _split_long_chunk(content):
+        for part in split_long_chunk(content):
             chunks.append(Chunk(content=part, url=url, section_title=sub_title))
 
     return chunks
@@ -184,7 +184,7 @@ def _chunk_page_fallback(soup: BeautifulSoup, url: str) -> list[Chunk]:
     if not headings:
         text = "\n".join(line.strip() for line in soup.get_text("\n").splitlines() if line.strip())
         title = soup.title.get_text(strip=True) if soup.title else url
-        for part in _split_long_chunk(text):
+        for part in split_long_chunk(text):
             chunks.append(Chunk(content=part, url=url, section_title=title))
         return chunks
 
@@ -200,7 +200,7 @@ def _chunk_page_fallback(soup: BeautifulSoup, url: str) -> list[Chunk]:
         content = re.sub(r"\n{3,}", "\n\n", "\n".join(p for p in content_parts if p)).strip()
         if not content:
             continue
-        for part in _split_long_chunk(content):
+        for part in split_long_chunk(content):
             chunks.append(Chunk(content=part, url=url, section_title=section_title))
 
     return chunks

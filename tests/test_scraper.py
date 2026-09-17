@@ -1,14 +1,14 @@
-from scraper import Chunk, _split_long_chunk, chunk_page, extract_page_text
+from scraper import Chunk, chunk_page, extract_page_text, split_long_chunk
 
 
 def test_split_long_chunk_under_limit_returns_single_part():
     text = "短文字"
-    assert _split_long_chunk(text) == [text]
+    assert split_long_chunk(text) == [text]
 
 
 def test_split_long_chunk_over_limit_splits_with_overlap():
     text = "a" * 1000
-    parts = _split_long_chunk(text)
+    parts = split_long_chunk(text)
     assert len(parts) > 1
     # overlap: end of first part should reappear at start of second part
     assert parts[0][-150:] == parts[1][:150]
