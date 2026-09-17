@@ -1,3 +1,5 @@
+import threading
+
 import streamlit as st
 
 from auth import require_login
@@ -43,6 +45,23 @@ h1, h2, h3 {
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
+# Kick off the embedding-model cold load in a background thread *before* the
+# login gate. This is safe pre-auth because it's a pure local model load with
+# zero DeepSeek/Supabase API calls — it burns no quota, unlike the RAG/agent
+# code below, which stays gated behind require_login(). By the time a real
+# user finishes typing credentials, the model is likely already warm, so the
+# @st.cache_resource call after login mostly just hits the cache instead of
+# paying the ~15s cold-load cost.
+if "embedding_warmup_started" not in st.session_state:
+    st.session_state.embedding_warmup_started = True
+
+    def _background_warmup():
+        from llm_client import embed as _embed
+
+        _embed("warm up")
+
+    threading.Thread(target=_background_warmup, daemon=True).start()
+
 require_login()  # must run before any RAG/embedding/API code — see auth.py
 
 from agent import answer_question_stream  # noqa: E402
@@ -56,9 +75,10 @@ st.caption("EDB 小學教育問答助手 · 答案有根有據，唔識就話你
 
 @st.cache_resource(show_spinner="首次載入 embedding model...")
 def _warm_up_embedding_model():
-    # Loads sentence-transformers into memory once at app startup instead of
-    # on the first user question, so per-query latency doesn't eat the
-    # 2-4s target with a 2-5s cold-load.
+    # If the background thread above already finished loading the model,
+    # this call hits llm_client's module-level singleton immediately. If it
+    # hasn't, this blocks and loads it here as a fallback (e.g. very fast
+    # typers, or an already-warm session where the thread never had to run).
     embed("warm up")
     return True
 

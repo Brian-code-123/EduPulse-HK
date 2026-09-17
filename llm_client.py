@@ -1,4 +1,4 @@
-from functools import lru_cache
+from threading import Lock
 
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
@@ -7,10 +7,23 @@ from config import CHAT_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, EMBEDDING_MO
 
 _client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
 
+_embedding_model_instance: SentenceTransformer | None = None
+_embedding_model_lock = Lock()
 
-@lru_cache(maxsize=1)
+
 def _embedding_model() -> SentenceTransformer:
-    return SentenceTransformer(EMBEDDING_MODEL)
+    global _embedding_model_instance
+    if _embedding_model_instance is None:
+        with _embedding_model_lock:
+            # Double-checked: another thread may have finished loading while
+            # this one was waiting for the lock. Without this second check,
+            # two concurrent first-callers would each construct their own
+            # SentenceTransformer instance — wasting ~15s twice and briefly
+            # doubling memory (~940MB on a 1GB Streamlit Cloud free-tier
+            # container, real OOM risk).
+            if _embedding_model_instance is None:
+                _embedding_model_instance = SentenceTransformer(EMBEDDING_MODEL)
+    return _embedding_model_instance
 
 
 def embed(text: str) -> list[float]:
