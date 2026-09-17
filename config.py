@@ -45,6 +45,18 @@ EDB_URLS = [
     "https://www.edb.gov.hk/tc/edu-system/primary-secondary/applicable-to-primary/whole-day-schooling/practice-experience.html",
 ]
 
+# Tier-2 scope decision: only text-based PDFs are indexed (verified with
+# pdftotext that this one extracts real text, not a scan). Scanned PDFs,
+# application forms, and posters are explicitly out of scope — see
+# AI_USAGE_NOTE.md section 6 for why. Each entry needs a matching title
+# below since PDFs don't have an <h1> to scrape a title from.
+PDF_URLS = [
+    "https://www.edb.gov.hk/attachment/tc/edu-system/primary-secondary/spa-systems/primary-1-admission/FAQ_TC.pdf",
+]
+PDF_TITLES = {
+    "https://www.edb.gov.hk/attachment/tc/edu-system/primary-secondary/spa-systems/primary-1-admission/FAQ_TC.pdf": "小一入學統籌辦法 常見問題",
+}
+
 USER_AGENT = "EduPulseHK-research/0.1 (contact: brian0728chun@gmail.com)"
 REQUEST_DELAY_SECONDS = 1.0
 CACHE_TTL_SECONDS = 24 * 60 * 60

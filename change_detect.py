@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import db
-from config import EDB_URLS
+from config import EDB_URLS, PDF_URLS
 from llm_client import chat
+from pdf_scraper import extract_pdf_text, fetch_pdf
 from scraper import extract_page_text, fetch_page
 
 
@@ -64,5 +65,29 @@ def check_url(url: str) -> ChangeResult:
     return ChangeResult(url=url, changed=True, summary=summary, detected_at=detected_at)
 
 
+def check_pdf_url(url: str) -> ChangeResult:
+    pdf_bytes = fetch_pdf(url)
+    if pdf_bytes is None:
+        return ChangeResult(url=url, changed=False)
+
+    new_text = extract_pdf_text(pdf_bytes)
+    new_hash = hash_text(new_text)
+
+    snapshot = db.get_snapshot(url)
+    if snapshot is None:
+        db.upsert_snapshot(url, new_hash, new_text)
+        return ChangeResult(url=url, changed=False)
+
+    if snapshot["html_hash"] == new_hash:
+        return ChangeResult(url=url, changed=False)
+
+    summary = summarize_diff(url, snapshot["raw_text"], new_text)
+    detected_at = datetime.now(timezone.utc).isoformat()
+    db.upsert_snapshot(url, new_hash, new_text)
+    return ChangeResult(url=url, changed=True, summary=summary, detected_at=detected_at)
+
+
 def check_updates() -> list[ChangeResult]:
-    return [check_url(url) for url in EDB_URLS]
+    html_results = [check_url(url) for url in EDB_URLS]
+    pdf_results = [check_pdf_url(url) for url in PDF_URLS]
+    return html_results + pdf_results

@@ -6,9 +6,10 @@ Usage: python ingest.py
 """
 
 import db
-from change_detect import check_url
-from config import EDB_URLS
+from change_detect import check_pdf_url, check_url
+from config import EDB_URLS, PDF_TITLES, PDF_URLS
 from llm_client import embed
+from pdf_scraper import chunk_pdf, fetch_pdf
 from scraper import scrape_all
 
 
@@ -17,7 +18,18 @@ def main() -> None:
     chunks = scrape_all()
     print(f"[ingest] got {len(chunks)} chunks from {len(EDB_URLS)} URLs")
 
-    for url in EDB_URLS:
+    print("[ingest] scraping PDF documents...")
+    pdf_chunks = []
+    for url in PDF_URLS:
+        pdf_bytes = fetch_pdf(url)
+        if pdf_bytes is None:
+            continue
+        pdf_chunks.extend(chunk_pdf(pdf_bytes, url, PDF_TITLES[url]))
+    print(f"[ingest] got {len(pdf_chunks)} chunks from {len(PDF_URLS)} PDFs")
+
+    chunks = chunks + pdf_chunks
+
+    for url in EDB_URLS + PDF_URLS:
         db.delete_chunks_for_url(url)
 
     rows = []
@@ -39,6 +51,8 @@ def main() -> None:
     print("[ingest] writing baseline snapshots for change detection...")
     for url in EDB_URLS:
         check_url(url)
+    for url in PDF_URLS:
+        check_pdf_url(url)
     print("[ingest] done")
 
 
