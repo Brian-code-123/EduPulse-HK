@@ -17,7 +17,7 @@ from scraper import Chunk, split_long_chunk
 # split digit runs — e.g. "2027" comes out as "202 7" or "20 27". Collapse
 # spaces between two CJK characters (defensive, in case another PDF hits
 # that artifact) and, more importantly here, spaces between two digits.
-_CJK_RANGE = "一-鿿　-〿＀-￯"
+_CJK_RANGE = "\u4e00-\u9fff\u3000-\u303f\uff00-\uffef"
 
 
 def normalize_cjk_spacing(text: str) -> str:
