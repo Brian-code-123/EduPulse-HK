@@ -17,6 +17,18 @@ Built for a take-home assessment — see `AI_USAGE_NOTE.md` for how AI tools wer
 4. **Push notification** — on a detected change, the diff is summarized in plain
    Cantonese/Chinese by the LLM (no raw HTML) and posted to a Discord webhook.
 
+## Demo
+
+**Website walkthrough** — login, asking a question the page covers, seeing
+the inline citation, and the Agent Process Log trace panel:
+
+![Website demo](assets/website-demo.gif)
+
+**Discord push notification** — a detected page change arriving as a
+formatted Discord embed (not raw HTML):
+
+![Discord notification demo](assets/discord-notification-demo.gif)
+
 ## Tech stack
 
 - **LLM**: DeepSeek API (`deepseek-flash`, function calling)
@@ -159,11 +171,16 @@ per-tenant isolation, no retry/backoff on the scraper or LLM calls, and the
 hardcoded 25-URL scope means it only knows about pages explicitly listed in
 `config.py`.
 
-- Scope 由 10 條擴展到 25 條 URL：發現原本嘅 10 條入面，`small-class-teaching`、
-  `direct-subsidy-scheme`、`through-train` 三個頁面本身只係連結選單（landing
-  page），真正政策內文喺再深一層嘅子頁，之前完全冇被scrape到，導致問呢幾個
-  主題答唔到。已經逐條實測confirm14條子頁（+之前已修嘅小一入學統籌辦法）都
-  用現有`chunk_page`邏輯攞到真實內容，加返落`config.EDB_URLS`。
-- `healthy-sch-policy/index.html`（健康校園政策）用 Webflow accordion 顯示內文，
-  實際段落內容係JS-render，static scraper攞唔到——已知呢個page被index咗但淨係得標題，
-  問細節問題時agent會老實答「未有直接答案」，唔會估估吓。
+- **Scope grew from 10 to 25 URLs**: three of the original 10 pages
+  (`small-class-teaching`, `direct-subsidy-scheme`, `through-train`) turned
+  out to be link menus, not content pages — the real policy text lived one
+  level deeper and was never scraped, so the agent couldn't answer questions
+  about those topics at all. Verified all 14 of their real content sub-pages
+  (plus a separately-fixed primary-1-admission page) actually yield
+  substantial text with the existing `chunk_page` logic before adding them
+  to `config.EDB_URLS`.
+- `healthy-sch-policy/index.html` (Healthy School Policy) renders its body
+  text client-side via a Webflow accordion component, which a static scraper
+  can't reach — only the 8 section headings are indexed. The agent correctly
+  answers "no direct answer in the database" for detail questions about this
+  page instead of guessing.
