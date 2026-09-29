@@ -1,5 +1,7 @@
 # 小學同行
 
+![Tests](https://github.com/Brian-code-123/EduPulse-HK/actions/workflows/test.yml/badge.svg)
+
 A grounded Q&A agent over Hong Kong's EDB primary-education policy pages — ask it a question, it answers from indexed source pages with inline citations, and says "I don't know" instead of making something up when a page doesn't cover it.
 
 ## Contents

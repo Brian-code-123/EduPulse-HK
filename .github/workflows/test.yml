@@ -1,0 +1,18 @@
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # config.py reads these at import time; unit tests are mocked, so dummies are enough.
+      DEEPSEEK_API_KEY: dummy
+      SUPABASE_URL: https://dummy.supabase.co
+      SUPABASE_KEY: dummy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest -m "not integration"
