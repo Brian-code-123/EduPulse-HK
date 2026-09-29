@@ -36,6 +36,27 @@ This indexes a fixed set of 25 EDB pages plus one whitelisted PDF — not a gene
 
 Grounded Q&A (in-domain, out-of-domain, and an edge-case question), the tool-call trace, and a detected page change pushed to Discord — all in one recording.
 
+## Eval results
+
+50 hand-written questions run through the real retrieval and agent code (`scripts/eval.py`), 2026-09-30: 30 in-domain, 12 out-of-domain, 8 edge cases. Each in-domain question has an expected source page and a key fact the answer must contain, both checked by string match. The questions are mine, not an independent benchmark. I ran it twice and got the same three misses, but LLM output varies, so treat a point or two as noise.
+
+| Measure | Result |
+|---|---|
+| Right source page retrieved, in-domain | 30/30 (100%, 95% CI 89-100%) |
+| Chunk containing the key fact retrieved, in-domain | 29/30 (97%, 95% CI 83-99%) |
+| Answer correct, in-domain | 29/30 (97%, 95% CI 83-99%) |
+| Correct decline, out-of-domain | 12/12 (100%, 95% CI 76-100%) |
+| Cited links matching the known source list | 50/50 (100%, 95% CI 93-100%) |
+| Edge cases judged correct | 3/5 (the other 3 of 8 have no fixed answer and are scored on retrieval only) |
+
+Page-level hit rate flatters retrieval, which is why the chunk-level row is there. All three misses are retrieval failures, not the model making things up; it declined because the fact wasn't in what it was given:
+
+- 校本支援服務入面邊個組別負責中學校本課程發展？ The right page is retrieved, but not the chunk that names 中學校本課程發展組.
+- 喺邊度可以攞到小一入學申請表？ Same pattern on the admission FAQ PDF: right document, wrong chunk in the top 5.
+- "What is the Direct Subsidy Scheme in Hong Kong?" The right page ranks first, but at 0.79 similarity it falls under the 0.85 threshold, so nothing is passed to the model. English queries against a Chinese index need a lower threshold or a query-translation step.
+
+Reproduce with `python scripts/eval.py` (needs `.env` and an ingested index; results go to `eval_results.json`, which is gitignored). Two questions ask for circular numbers from the 數字教育 news list, so they will go stale when EDB updates that page. Unit tests are separate and run in CI on every push.
+
 ## Quick start
 
 **Requirements**: Python 3.11+, a Supabase project, a DeepSeek API key, a Discord webhook URL (optional, only needed for push notifications).

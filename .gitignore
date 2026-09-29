@@ -9,3 +9,4 @@ logs/*.jsonl
 .DS_Store
 
 AI_USAGE_NOTE.md
+eval_results.json
