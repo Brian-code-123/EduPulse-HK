@@ -36,6 +36,10 @@ This indexes a fixed set of 25 EDB pages plus one whitelisted PDF — not a gene
 
 Grounded Q&A (in-domain, out-of-domain, and an edge-case question), the tool-call trace, and a detected page change pushed to Discord — all in one recording.
 
+The Discord notifications below come from the same demo. The page changes were staged by editing the stored snapshot, so the described diffs are test content, not real EDB edits.
+
+<img src="assets/discord-notification.png" alt="Discord notifications from the change-detection bot" width="320">
+
 ## Eval results
 
 50 hand-written questions run through the real retrieval and agent code (`scripts/eval.py`), 2026-09-30: 30 in-domain, 12 out-of-domain, 8 edge cases. Each in-domain question has an expected source page and a key fact the answer must contain, both checked by string match. The questions are mine, not an independent benchmark. I ran it twice and got the same three misses, but LLM output varies, so treat a point or two as noise.
