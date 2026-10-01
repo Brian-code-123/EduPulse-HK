@@ -47,3 +47,20 @@ as $$
   order by document_chunks.embedding <=> query_embedding
   limit match_count;
 $$;
+
+create table if not exists query_log (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),  -- insert time, after the answer finished
+  asked_at timestamptz not null,                  -- when the app received the question (UTC)
+  asked_at_hkt text not null,                     -- HKT copy of asked_at so it reads right in the table view
+  session_id text not null,
+  question text not null,
+  answer text not null,
+  declined boolean not null,
+  cited_urls text[] not null default '{}',
+  similarities float8[] not null default '{}',
+  tool_called boolean not null default false,
+  latency_ms int
+);
+create index if not exists query_log_asked_at_idx on query_log (asked_at desc);
+alter table query_log enable row level security;
