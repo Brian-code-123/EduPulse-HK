@@ -1,4 +1,7 @@
 import threading
+import time
+import uuid
+from datetime import datetime, timezone
 
 import streamlit as st
 
@@ -68,6 +71,7 @@ from agent import answer_question_stream  # noqa: E402
 from change_detect import check_updates  # noqa: E402
 from llm_client import embed_query  # noqa: E402
 from notify import notify_all_changes  # noqa: E402
+from query_log import record_query  # noqa: E402
 
 st.title("小學同行")
 st.caption("EDB 小學教育問答助手 · 答案有根有據，唔識就話你知")
@@ -93,6 +97,7 @@ _warm_up_embedding_model()
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+st.session_state.setdefault("session_id", uuid.uuid4().hex)
 
 chat_col, log_col = st.columns([2, 1])
 
@@ -103,14 +108,18 @@ with chat_col:
             st.markdown(msg["content"])
 
     question = st.chat_input("問關於小學教育嘅問題...")
+    st.caption("問答會被記錄，用於除錯同改進。")
     if question:
+        asked_at = datetime.now(timezone.utc)
         st.session_state.messages.append({"role": "user", "content": question})
         with st.chat_message("user"):
             st.markdown(question)
 
         trace: list[dict] = []
+        t0 = time.time()
         with st.chat_message("assistant"):
             answer = st.write_stream(answer_question_stream(question, trace=trace))
+        record_query(question, answer, trace, int((time.time() - t0) * 1000), st.session_state.session_id, asked_at)
         st.session_state.messages.append({"role": "assistant", "content": answer})
         st.session_state.last_trace = trace
         st.rerun()

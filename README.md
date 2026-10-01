@@ -109,6 +109,15 @@ The source page list lives in `config.py` (`EDB_URLS`, `PDF_URLS`) rather than a
 
 Ask a question in the chat box. The right-hand "Agent Process Log" panel shows what the agent actually did to answer it — retrieval, similarity scores, the generation step — so you can see it's not just printing canned text.
 
+Questions asked in the app are stored in the Supabase `query_log` table so failures can be debugged after a redeploy: the question and answer, when it was asked (the server clock when the app received the question, shown in HKT to the millisecond), an anonymous per-session id, whether it declined, and the cited URLs. No IP address or user agent is kept. Read it in the Supabase table view or with:
+
+```sql
+select asked_at_hkt, session_id, question, declined
+from query_log order by asked_at desc limit 50;
+```
+
+There's no automatic cleanup; prune by hand with `delete from query_log where asked_at < now() - interval '90 days';`.
+
 To check EDB pages for updates and push a Discord notification on anything that changed:
 
 ```bash
