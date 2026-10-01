@@ -46,3 +46,7 @@ def upsert_snapshot(url: str, html_hash: str, raw_text: str) -> None:
         },
         on_conflict="url",
     ).execute()
+
+
+def insert_query_log(row: dict) -> None:
+    get_client().table("query_log").insert(row).execute()
