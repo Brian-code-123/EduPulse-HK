@@ -7,7 +7,9 @@ A grounded Q&A agent over Hong Kong's EDB primary-education policy pages — ask
 ## Contents
 
 - [Overview](#overview)
+- [Architecture](#architecture)
 - [Demo](#demo)
+- [Eval results](#eval-results)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -29,6 +31,37 @@ Four things it does:
 **Stack**: Streamlit for the UI, DeepSeek (`deepseek-flash`) for generation and tool calling, a local `sentence-transformers` model (`intfloat/multilingual-e5-small`) for embeddings, Supabase (Postgres + pgvector) for storage and retrieval, Discord webhooks for notifications.
 
 This indexes a fixed set of 25 EDB pages plus one whitelisted PDF — not a general crawler — and runs behind a single admin login with no self-registration. Scope and auth choices like these are deliberate for a single-tenant demo, not gaps; see the technical note's scalability section for what changes past that.
+
+## Architecture
+
+Three pipelines share one Supabase project and a few helpers (the database client, the scraper, the embedding function). None of them depends on another's runtime state, so each can be run or changed on its own.
+
+```mermaid
+flowchart TD
+    user["Browser"] --> app["app.py: Streamlit + login"]
+    app --> rag["rag.py: embed question, top 5 chunks"]
+    rag --> chunks[("document_chunks (pgvector)")]
+    chunks --> rag
+    rag --> agent["agent.py: DeepSeek, optional tool call"]
+    agent --> snaps[("page_snapshots")]
+    agent --> app
+    app -.-> qlog[("query_log")]
+
+    ingest["ingest.py: scrape, chunk, embed"] --> chunks
+    ingest --> snaps
+    detect["change_detect.py: hash and diff"] --> snaps
+    detect --> notify["notify.py: Discord webhook"]
+```
+
+**Answering a question.** The question is embedded with `intfloat/multilingual-e5-small` and matched against `document_chunks` by cosine similarity in Postgres (`match_document_chunks`). The top 5 chunks are kept only if they score at least 0.85. That cutoff looks high, but e5 scores even unrelated pairs around 0.8, so a lower one lets everything through. What survives goes to DeepSeek as context, with a system prompt that requires a `[Section Title](URL)` citation for every claim and the fixed reply "資料庫中未有相關資訊" when the context doesn't cover the question. The model can also call `get_section_last_updated`, which looks up the page behind a section and returns when its snapshot last changed. Each step shows up in the Agent Process Log panel next to the chat and in `logs/agent_trace.jsonl`.
+
+**Ingesting pages.** `ingest.py` fetches the 25 pages and the PDF, and splits the text into chunks. A block of up to 800 characters stays whole; longer text is cut into 500-character windows with 150 characters of overlap. Each chunk is embedded with the `passage:` prefix e5 expects, and a URL's old chunks are deleted before its new ones are inserted, so re-running it never leaves duplicates. At the end it stores a baseline snapshot of every page, so change detection has something to compare against.
+
+**Detecting changes.** `change_detect.py` fetches each page, normalises the text and compares its SHA-256 with the stored snapshot. A page with no snapshot yet just gets a baseline stored. Otherwise, a different hash makes DeepSeek summarise the diff in plain Cantonese (the first 4000 characters of it), the snapshot is replaced, and `notify.py` posts the summary to Discord. The pages are fetched one second apart, so a full check takes about half a minute.
+
+**Logging.** After each answer, `query_log.py` writes the question, answer and ask time to Supabase on a background thread. It retries once and swallows every error, so a database problem can never slow down or break an answer.
+
+**Why it's built this way.** The app runs entirely server-side with the Supabase `service_role` key; the tables have Row Level Security on and no policies, so the browser-facing `anon` key can't read anything. The page list is a constant in `config.py` rather than a table, because a fixed list of 26 sources doesn't need an admin UI. The embedding model is loaded once per process and warmed up in a background thread before the login gate, so the first real question doesn't pay the load time.
 
 ## Demo
 
