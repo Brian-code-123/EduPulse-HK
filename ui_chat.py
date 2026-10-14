@@ -109,8 +109,12 @@ def render_chat() -> None:
     typed = st.chat_input("問一條問題（問答會被記錄）", max_chars=MAX_QUESTION_CHARS)
     question = (typed or pending or "").strip()
 
+    # The slot replaces last run's starter buttons at once, instead of leaving them
+    # greyed out under the first answer while it streams.
+    slot = st.empty()
     if not messages and not question:
-        _render_empty_state()
+        with slot.container():
+            _render_empty_state()
     else:
         _render_history(messages)
 
