@@ -64,3 +64,26 @@ def upsert_snapshot(url: str, html_hash: str, raw_text: str) -> None:
 def insert_query_log(row: dict) -> None:
     get_client().table("query_log").insert(row).execute()
 
+
+def get_latest_index_time() -> str | None:
+    resp = (
+        get_client()
+        .table("document_chunks")
+        .select("created_at")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return resp.data[0]["created_at"] if resp.data else None
+
+
+def get_recent_queries(limit: int = 50) -> list[dict]:
+    resp = (
+        get_client()
+        .table("query_log")
+        .select("asked_at_hkt,question,declined")
+        .order("asked_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return resp.data or []
