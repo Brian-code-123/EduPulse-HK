@@ -1,52 +1,12 @@
 import threading
-import time
-import uuid
-from datetime import datetime, timezone
 
 import streamlit as st
 
 from auth import require_login
+from ui_theme import apply_theme
 
-st.set_page_config(page_title="小學同行", layout="wide")
-
-CUSTOM_CSS = """
-<style>
-html, body, [class*="css"] {
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang HK", "Noto Sans HK",
-                 "Microsoft JhengHei", sans-serif;
-}
-
-[data-testid="stChatMessage"] {
-    border-radius: 16px;
-    padding: 0.75rem 1rem;
-    margin-bottom: 0.5rem;
-}
-
-[data-testid="stChatMessageAvatarUser"],
-[data-testid="stChatMessageAvatarAssistant"] {
-    display: none;
-}
-
-[data-testid="stChatMessageAvatarUser"] ~ div [data-testid="stChatMessage"],
-[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
-    background-color: #F0E6D3;
-}
-
-[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
-    background-color: #FFFFFF;
-    border: 1px solid #EBE1CC;
-}
-
-.stButton > button {
-    border-radius: 10px;
-}
-
-h1, h2, h3 {
-    letter-spacing: 0.02em;
-}
-</style>
-"""
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+st.set_page_config(page_title="小學同行", layout="centered", initial_sidebar_state="collapsed")
+apply_theme()
 
 # Kick off the embedding-model cold load in a background thread *before* the
 # login gate. This is safe pre-auth because it's a pure local model load with
@@ -67,23 +27,15 @@ if "embedding_warmup_started" not in st.session_state:
 
 require_login()  # must run before any RAG/embedding/API code — see auth.py
 
-from agent import answer_question_stream  # noqa: E402
-from change_detect import check_updates  # noqa: E402
+import db  # noqa: E402
+from config import EDB_URLS, PDF_URLS  # noqa: E402
 from llm_client import embed_query  # noqa: E402
-from notify import notify_all_changes  # noqa: E402
-from query_log import record_query  # noqa: E402
-
-st.title("小學同行")
-st.caption("EDB 小學教育問答助手 · 答案有根有據，唔識就話你知")
-
-with st.sidebar:
-    if st.button("重新開始對話"):
-        st.session_state.messages = []
-        st.session_state.pop("last_trace", None)
-        st.rerun()
+from ui_admin import render_admin  # noqa: E402
+from ui_chat import render_chat  # noqa: E402
+from ui_helpers import format_index_date  # noqa: E402
 
 
-@st.cache_resource(show_spinner="首次載入 embedding model...")
+@st.cache_resource(show_spinner="準備緊問答系統，第一次會慢啲，請稍等…")
 def _warm_up_embedding_model():
     # If the background thread above already finished loading the model,
     # this call hits llm_client's module-level singleton immediately. If it
@@ -93,86 +45,40 @@ def _warm_up_embedding_model():
     return True
 
 
+@st.cache_data(ttl=3600)
+def _index_date() -> str | None:
+    try:
+        return format_index_date(db.get_latest_index_time())
+    except Exception:
+        return None
+
+
+def _render_sidebar() -> None:
+    with st.sidebar:
+        if st.button("重新開始對話"):
+            st.session_state.messages = []
+            st.session_state.pop("last_trace", None)
+            st.session_state.pop("pending_question", None)
+            st.rerun()
+        st.divider()
+        st.markdown("**關於小學同行**")
+        st.markdown(
+            f"整理自 {len(EDB_URLS)} 個教育局網頁同 {len(PDF_URLS)} 份 PDF，"
+            "包括小學全日制、小班教學、直接資助計劃、「一條龍」、小一入學、校本支援、數字教育同健康校園政策。"
+        )
+        index_date = _index_date()
+        if index_date:
+            st.caption(f"資料整理日期：{index_date}")
+        st.caption("問答會被記錄，用於除錯同改進。")
+        st.caption("本服務並非教育局官方服務，內容整理自教育局網頁，只供參考，請以教育局最新公布為準。")
+
+
 _warm_up_embedding_model()
+_render_sidebar()
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-st.session_state.setdefault("session_id", uuid.uuid4().hex)
-
-chat_col, log_col = st.columns([2, 1])
-
-with chat_col:
-    st.subheader("問答")
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    question = st.chat_input("問關於小學教育嘅問題...")
-    st.caption("問答會被記錄，用於除錯同改進。")
-    if question:
-        asked_at = datetime.now(timezone.utc)
-        st.session_state.messages.append({"role": "user", "content": question})
-        with st.chat_message("user"):
-            st.markdown(question)
-
-        trace: list[dict] = []
-        t0 = time.time()
-        with st.chat_message("assistant"):
-            answer = st.write_stream(answer_question_stream(question, trace=trace))
-        record_query(question, answer, trace, int((time.time() - t0) * 1000), st.session_state.session_id, asked_at)
-        st.session_state.messages.append({"role": "assistant", "content": answer})
-        st.session_state.last_trace = trace
-        st.rerun()
-
-EVENT_LABELS = {
-    "retrieval_started": "搜緊相關內容",
-    "retrieval_completed": "搵到相關段落",
-    "llm_call_started": "諗緊點答",
-    "tool_call_requested": "叫緊個tool",
-    "tool_call_result": "Tool答咗嘢返嚟",
-    "final_answer": "生成咗答案",
-}
-
-
-def render_trace_event(event: dict) -> None:
-    kind = event.get("event", "unknown")
-    label = EVENT_LABELS.get(kind, kind)
-    with st.expander(label, expanded=False):
-        if kind == "retrieval_completed":
-            for section, sim in zip(event.get("matched_sections", []), event.get("similarities", [])):
-                st.markdown(f"- **{section}**（相似度 {sim}）")
-        elif kind == "tool_call_requested":
-            st.markdown(f"呼叫 `{event.get('tool')}`")
-            if "arguments" in event:
-                st.json(event["arguments"])
-        elif kind == "tool_call_result":
-            st.markdown(f"`{event.get('tool')}` 回傳：")
-            st.json(event.get("result", {}))
-        elif kind == "final_answer":
-            st.markdown(event.get("answer", ""))
-        else:
-            st.json({k: v for k, v in event.items() if k != "event"})
-
-
-with log_col:
-    st.subheader("Agent Process Log")
-    if st.button("Refresh（檢查EDB網頁有冇更新）"):
-        with st.spinner("檢查緊..."):
-            results = check_updates()
-            notify_all_changes(results)
-        changed = [r for r in results if r.changed]
-        if changed:
-            st.success(f"偵測到 {len(changed)} 個頁面有更新，已推送Discord通知")
-            for r in changed:
-                st.write(f"**{r.url}**")
-                st.write(r.summary)
-        else:
-            st.info("暫時未偵測到任何變更")
-
-    st.divider()
-    trace = st.session_state.get("last_trace", [])
-    if trace:
-        for event in trace:
-            render_trace_event(event)
-    else:
-        st.caption("問一條問題，呢度會顯示Agent嘅執行trace（檢索/tool call/生成過程）")
+st.navigation(
+    [
+        st.Page(render_chat, title="問答", url_path="chat", default=True),
+        st.Page(render_admin, title="資料更新與除錯", url_path="admin"),
+    ]
+).run()

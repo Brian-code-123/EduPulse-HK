@@ -8,6 +8,11 @@ def require_login() -> None:
     unauthenticated visitor triggers zero backend work."""
     auth_cfg = st.secrets["auth"]
 
+    header = st.empty()
+    with header.container():
+        st.title("小學同行")
+        st.caption("教育局小學教育資料問答，答案附出處")
+
     authenticator = stauth.Authenticate(
         credentials={
             "usernames": {
@@ -22,14 +27,26 @@ def require_login() -> None:
         cookie_expiry_days=float(auth_cfg.get("cookie_expiry_days", 30)),
     )
 
-    authenticator.login(location="main", max_login_attempts=5)
+    authenticator.login(
+        location="main",
+        max_login_attempts=5,
+        fields={
+            "Form name": "登入小學同行",
+            "Username": "用戶名稱",
+            "Password": "密碼",
+            "Login": "登入",
+            "Captcha": "驗證碼",
+        },
+    )
 
     if st.session_state.get("authentication_status") is False:
         st.error("用戶名或密碼錯誤")
         st.stop()
     elif st.session_state.get("authentication_status") is None:
-        st.info("請登入先可以用小學同行")
+        st.info("請先登入")
         st.stop()
+
+    header.empty()
 
     with st.sidebar:
         st.caption(f"已登入：{st.session_state.get('name')}")

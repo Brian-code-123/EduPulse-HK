@@ -1,5 +1,5 @@
 [theme]
-primaryColor = "#C97C3D"
+primaryColor = "#965616"
 backgroundColor = "#FAF6EE"
 secondaryBackgroundColor = "#F0E6D3"
 textColor = "#2B2B26"
@@ -10,3 +10,4 @@ headless = true
 
 [client]
 showErrorDetails = false
+toolbarMode = "minimal"
