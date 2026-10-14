@@ -46,3 +46,43 @@ def test_get_snapshot_retries_once_after_dropped_connection():
     with patch("db.get_client", return_value=client):
         assert db.get_snapshot("u") == {"url": "u"}
     assert execute.call_count == 2
+
+
+def _flaky(execute_mock, data):
+    import httpx
+
+    execute_mock.side_effect = [httpx.RemoteProtocolError("Server disconnected"), MagicMock(data=data)]
+
+
+def test_get_latest_index_time_retries_once_after_dropped_connection():
+    client = MagicMock()
+    execute = client.table.return_value.select.return_value.order.return_value.limit.return_value.execute
+    _flaky(execute, [{"created_at": "2026-09-17T14:50:40+00:00"}])
+    with patch("db.get_client", return_value=client):
+        assert db.get_latest_index_time() == "2026-09-17T14:50:40+00:00"
+    assert execute.call_count == 2
+
+
+def test_get_recent_queries_retries_once_after_dropped_connection():
+    client = MagicMock()
+    execute = client.table.return_value.select.return_value.order.return_value.limit.return_value.execute
+    _flaky(execute, [{"question": "Q"}])
+    with patch("db.get_client", return_value=client):
+        assert db.get_recent_queries(5) == [{"question": "Q"}]
+    assert execute.call_count == 2
+
+
+def test_find_chunk_url_returns_the_url_or_none_and_retries_once():
+    client = MagicMock()
+    execute = client.table.return_value.select.return_value.ilike.return_value.limit.return_value.execute
+    _flaky(execute, [{"url": "https://x/a"}])
+    with patch("db.get_client", return_value=client):
+        assert db.find_chunk_url("小學全日制") == "https://x/a"
+    client.table.assert_called_with("document_chunks")
+    client.table.return_value.select.return_value.ilike.assert_called_with("section_title", "%小學全日制%")
+    assert execute.call_count == 2
+
+    client = MagicMock()
+    client.table.return_value.select.return_value.ilike.return_value.limit.return_value.execute.return_value.data = []
+    with patch("db.get_client", return_value=client):
+        assert db.find_chunk_url("冇呢段") is None

@@ -66,8 +66,8 @@ def insert_query_log(row: dict) -> None:
 
 
 def get_latest_index_time() -> str | None:
-    resp = (
-        get_client()
+    resp = _retry_once_on_dropped_connection(
+        lambda: get_client()
         .table("document_chunks")
         .select("created_at")
         .order("created_at", desc=True)
@@ -78,8 +78,8 @@ def get_latest_index_time() -> str | None:
 
 
 def get_recent_queries(limit: int = 50) -> list[dict]:
-    resp = (
-        get_client()
+    resp = _retry_once_on_dropped_connection(
+        lambda: get_client()
         .table("query_log")
         .select("asked_at_hkt,question,declined")
         .order("asked_at", desc=True)
@@ -87,3 +87,15 @@ def get_recent_queries(limit: int = 50) -> list[dict]:
         .execute()
     )
     return resp.data or []
+
+
+def find_chunk_url(section_title: str) -> str | None:
+    resp = _retry_once_on_dropped_connection(
+        lambda: get_client()
+        .table("document_chunks")
+        .select("url")
+        .ilike("section_title", f"%{section_title}%")
+        .limit(1)
+        .execute()
+    )
+    return resp.data[0]["url"] if resp.data else None

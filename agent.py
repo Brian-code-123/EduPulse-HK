@@ -37,18 +37,10 @@ def _log_trace(event: dict) -> None:
 
 
 def get_section_last_updated(section_title: str) -> dict:
-    resp = (
-        db.get_client()
-        .table("document_chunks")
-        .select("url")
-        .ilike("section_title", f"%{section_title}%")
-        .limit(1)
-        .execute()
-    )
-    if not resp.data:
+    url = db.find_chunk_url(section_title)
+    if url is None:
         return {"found": False, "message": f"搵唔到段落「{section_title}」"}
 
-    url = resp.data[0]["url"]
     snapshot = db.get_snapshot(url)
     if snapshot is None:
         return {"found": False, "message": "呢個頁面未有偵測記錄"}
