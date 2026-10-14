@@ -62,3 +62,14 @@ def test_embed_passage_prepends_passage_prefix(monkeypatch):
     monkeypatch.setattr(llm_client, "_embedding_model", lambda: FakeModel())
     llm_client.embed_passage("小學全日制的好處...")
     assert captured["text"] == "passage: 小學全日制的好處..."
+
+
+def test_embedding_model_is_pinned_to_cpu():
+    llm_client._embedding_model_instance = None
+
+    with patch("llm_client.SentenceTransformer") as constructor:
+        llm_client._embedding_model()
+
+    assert constructor.call_args.kwargs["device"] == "cpu"
+    llm_client._embedding_model_instance = None
+

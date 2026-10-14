@@ -22,7 +22,9 @@ def _embedding_model() -> SentenceTransformer:
             # doubling memory (~940MB on a 1GB Streamlit Cloud free-tier
             # container, real OOM risk).
             if _embedding_model_instance is None:
-                _embedding_model_instance = SentenceTransformer(EMBEDDING_MODEL)
+                # CPU on purpose: on Apple silicon the default (MPS) aborts the whole
+                # process when the warm-up thread and a request encode at once.
+                _embedding_model_instance = SentenceTransformer(EMBEDDING_MODEL, device="cpu")
     return _embedding_model_instance
 
 
@@ -60,3 +62,4 @@ def chat_stream(messages: list[dict]):
         delta = chunk.choices[0].delta.content
         if delta:
             yield delta
+
