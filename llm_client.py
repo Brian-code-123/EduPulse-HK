@@ -1,4 +1,5 @@
 from threading import Lock
+from types import SimpleNamespace
 
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
@@ -63,3 +64,34 @@ def chat_stream(messages: list[dict]):
         if delta:
             yield delta
 
+
+def chat_stream_events(messages: list[dict], tools: list[dict] | None = None, tool_choice: str | None = None):
+    """Stream one completion. Yields ("text", delta) as it arrives and, only when the
+    model asked for tools, a final ("tool_calls", [call, ...]) once every call is
+    complete. Tool calls arrive in pieces, so they're assembled here by index."""
+    kwargs = {"model": CHAT_MODEL, "messages": messages, "stream": True}
+    if tools:
+        kwargs["tools"] = tools
+    if tool_choice:
+        kwargs["tool_choice"] = tool_choice
+
+    calls: dict[int, SimpleNamespace] = {}
+    for chunk in _client.chat.completions.create(**kwargs):
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta
+        if delta.content:
+            yield ("text", delta.content)
+        for piece in delta.tool_calls or []:
+            call = calls.setdefault(
+                piece.index, SimpleNamespace(id="", function=SimpleNamespace(name="", arguments=""))
+            )
+            if piece.id:
+                call.id = piece.id
+            if piece.function:
+                if piece.function.name:
+                    call.function.name = piece.function.name
+                if piece.function.arguments:
+                    call.function.arguments += piece.function.arguments
+    if calls:
+        yield ("tool_calls", [calls[index] for index in sorted(calls)])

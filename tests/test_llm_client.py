@@ -73,3 +73,66 @@ def test_embedding_model_is_pinned_to_cpu():
     assert constructor.call_args.kwargs["device"] == "cpu"
     llm_client._embedding_model_instance = None
 
+
+def _chunk(content=None, tool_calls=None):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=content, tool_calls=tool_calls))])
+
+
+def _tool_delta(index, id=None, name=None, arguments=None):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(index=index, id=id, function=SimpleNamespace(name=name, arguments=arguments))
+
+
+def _events(chunks, **kwargs):
+    with patch.object(llm_client._client.chat.completions, "create", return_value=iter(chunks)) as create:
+        return list(llm_client.chat_stream_events([{"role": "user", "content": "x"}], **kwargs)), create
+
+
+def test_chat_stream_events_yields_text_deltas_and_skips_empty_chunks():
+    from types import SimpleNamespace
+
+    chunks = [_chunk("你"), _chunk(None), _chunk(""), _chunk("好"), SimpleNamespace(choices=[])]
+    events, create = _events(chunks, tools=[{"type": "function"}], tool_choice="auto")
+    assert events == [("text", "你"), ("text", "好")]
+    kwargs = create.call_args.kwargs
+    assert kwargs["stream"] is True
+    assert kwargs["tools"] == [{"type": "function"}]
+    assert kwargs["tool_choice"] == "auto"
+
+
+def test_chat_stream_events_assembles_tool_call_arguments_across_chunks():
+    import json
+
+    chunks = [
+        _chunk(tool_calls=[_tool_delta(0, "c1", "get_section_last_updated", '{"section')]),
+        _chunk(tool_calls=[_tool_delta(0, None, None, '_title": "小學全日制"}')]),
+    ]
+    events, _ = _events(chunks)
+    assert [kind for kind, _ in events] == ["tool_calls"]
+    (call,) = events[0][1]
+    assert call.id == "c1"
+    assert call.function.name == "get_section_last_updated"
+    assert json.loads(call.function.arguments) == {"section_title": "小學全日制"}
+
+
+def test_chat_stream_events_keeps_interleaved_tool_calls_apart_by_index():
+    chunks = [
+        _chunk(tool_calls=[_tool_delta(0, "a", "tool_a", '{"x":'), _tool_delta(1, "b", "tool_b", '{"y":')]),
+        _chunk(tool_calls=[_tool_delta(1, None, None, "2}"), _tool_delta(0, None, None, "1}")]),
+    ]
+    events, _ = _events(chunks)
+    calls = events[0][1]
+    assert [(c.id, c.function.name, c.function.arguments) for c in calls] == [
+        ("a", "tool_a", '{"x":1}'),
+        ("b", "tool_b", '{"y":2}'),
+    ]
+
+
+def test_chat_stream_events_streams_text_before_a_tool_call_and_puts_tool_calls_last():
+    chunks = [_chunk("我查下"), _chunk(tool_calls=[_tool_delta(0, "c1", "t", "{}")])]
+    events, _ = _events(chunks)
+    assert events[0] == ("text", "我查下")
+    assert events[-1][0] == "tool_calls"
