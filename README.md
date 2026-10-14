@@ -70,13 +70,13 @@ flowchart TD
 
 <img src="assets/ui-home.jpg" alt="Main page with suggested questions" width="260"> <img src="assets/ui-answer.jpg" alt="An answer with its sources" width="260">
 
-The main page on a phone: suggested questions to start from, and an answer that names its sources. Below is a walkthrough recorded before the interface redesign, so the trace and refresh button it shows now live on the admin page.
+The main page on a phone: suggested questions to start from, and an answer that names its sources.
 
 ![Website demo](assets/website-demo.gif)
 
-Grounded Q&A (in-domain, out-of-domain, and an edge-case question), the tool-call trace, and a detected page change pushed to Discord — all in one recording.
+A walkthrough on a laptop: pick a suggested question, read the answer and its sources, open the "how this answer was found" note, follow up with a suggested question, ask something the documents don't cover, then open the admin page for the retrieval scores and the log of recent questions.
 
-The Discord notifications below come from the same demo. The page changes were staged by editing the stored snapshot, so the described diffs are test content, not real EDB edits.
+Change detection posts to Discord when a tracked page changes. The notifications below are from a run where the page changes were staged by editing the stored snapshot, so the described diffs are test content, not real EDB edits.
 
 <img src="assets/discord-notification.png" alt="Discord notifications from the change-detection bot" width="320">
 
