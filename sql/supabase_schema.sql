@@ -1,20 +1,21 @@
--- EduPulse HK Supabase schema.
--- Applied via Supabase MCP during development; kept here so the schema is
--- reproducible without needing the MCP tool.
+-- EduPulse HK Supabase schema. Run it on a project of its own (SQL editor or
+-- psql). Every table has row level security on and no policies, so only the
+-- service_role key the app uses can read or write them.
 
-create extension if not exists vector;
+create extension if not exists vector with schema extensions;
 
 create table if not exists document_chunks (
   id uuid primary key default gen_random_uuid(),
   content text not null,
   url text not null,
   section_title text not null,
-  embedding vector(384) not null,  -- paraphrase-multilingual-MiniLM-L12-v2 output size
+  embedding extensions.vector(384) not null,  -- intfloat/multilingual-e5-small output size
   created_at timestamptz not null default now()
 );
 
 create index if not exists document_chunks_url_idx on document_chunks (url);
-create index if not exists document_chunks_embedding_idx on document_chunks using hnsw (embedding vector_cosine_ops);
+create index if not exists document_chunks_embedding_idx on document_chunks using hnsw (embedding extensions.vector_cosine_ops);
+alter table document_chunks enable row level security;
 
 create table if not exists page_snapshots (
   id uuid primary key default gen_random_uuid(),
@@ -23,9 +24,10 @@ create table if not exists page_snapshots (
   raw_text text not null,
   updated_at timestamptz not null default now()
 );
+alter table page_snapshots enable row level security;
 
 create or replace function match_document_chunks(
-  query_embedding vector(384),
+  query_embedding extensions.vector(384),
   match_count int default 3
 )
 returns table (
@@ -36,6 +38,7 @@ returns table (
   similarity float
 )
 language sql stable
+set search_path = public, extensions
 as $$
   select
     document_chunks.id,
