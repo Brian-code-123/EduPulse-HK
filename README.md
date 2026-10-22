@@ -205,4 +205,6 @@ pytest -m integration    # exercises live DeepSeek + Supabase, needs ingest.py r
 
 Runs as-is on Streamlit Community Cloud's free tier — push to GitHub, deploy from [share.streamlit.io](https://share.streamlit.io) with `app.py` as the entry point, and paste the same keys from `.env` into the app's Secrets. First deploy takes a few minutes to install `torch` + `sentence-transformers`.
 
+After changing a value in the app's Secrets, reboot the app (⋮ → Reboot). Saving the Secrets updates `st.secrets` but not the environment variables the running process already read, and `config.py` reads those at import, so an app that is still up keeps using the old values until it restarts.
+
 The free tier sleeps the app after inactivity (10-60s cold start on the next visit) and caps RAM around 1GB, which is tight but workable for this model's footprint.
