@@ -10,3 +10,6 @@ logs/*.jsonl
 
 AI_USAGE_NOTE.md
 eval_results.json
+
+.env.*
+!.env.example
