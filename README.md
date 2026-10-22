@@ -141,7 +141,7 @@ SUPABASE_PROJECT_ID=    # Supabase project ref
 DISCORD_WEBHOOK_URL=    # Server Settings → Integrations → Webhooks → Copy URL
 ```
 
-`document_chunks` and `page_snapshots` have Row Level Security enabled with no policies, so reads and writes only work through the `service_role` key — the `anon` key is deliberately left unable to touch either table. This app runs entirely server-side (Streamlit), so `service_role` never reaches a browser.
+All three tables (`document_chunks`, `page_snapshots`, `query_log`) have Row Level Security enabled with no policies, so reads and writes only work through the `service_role` key — the `anon` key is deliberately left unable to touch any of them. This app runs entirely server-side (Streamlit), so `service_role` never reaches a browser. That key bypasses row level security for every table in the project, so give this app a Supabase project of its own rather than sharing one with another application.
 
 The source page list lives in `config.py` (`EDB_URLS`, `PDF_URLS`) rather than a database table — adding a page to track means adding a URL there and re-running `ingest.py`.
 
